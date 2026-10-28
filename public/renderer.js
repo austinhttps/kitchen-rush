@@ -1,7 +1,7 @@
 window.KitchenRenderer = (() => {
   const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d'),art=KitchenArt;
   canvas.width=1440;canvas.height=1040;
-  let snapshot=null,session=null,received=0,aim=null,movement={dx:0,dy:0};
+  let snapshot=null,session=null,received=0,aim=null,movement={dx:0,dy:0},localCorrection={x:0,y:0,started:0,duration:120};
   const motion=new Map();
   const origin={x:42,y:176},scale=80;
   function food(item){
@@ -23,7 +23,7 @@ window.KitchenRenderer = (() => {
       x=track.x+(track.toX-track.x)*t;
       y=track.y+(track.toY-track.y)*t;
     }
-    if(id===session?.token&&!snapshot.paused&&!snapshot.finished&&(movement.dx||movement.dy)){
+    if(id===session?.token&&!snapshot.paused&&!snapshot.finished&&p.stunned_until<=snapshot.now&&(movement.dx||movement.dy)){
       const length=Math.max(1,Math.hypot(movement.dx,movement.dy));
       let distance=Math.min(.22,Math.max(0,(at-received)/1000))*4;
       const steps=Math.max(1,Math.ceil(distance/.08));
@@ -35,6 +35,12 @@ window.KitchenRenderer = (() => {
         x=nx;y=ny;
       }
     }
+    if(id===session?.token){
+      const remaining=Math.max(0,1-(at-localCorrection.started)/localCorrection.duration);
+      const ease=remaining*remaining;
+      x+=localCorrection.x*ease;
+      y+=localCorrection.y*ease;
+    }
     return{x,y};
   }
   function update(s,who){
@@ -42,16 +48,22 @@ window.KitchenRenderer = (() => {
     if(snapshot&&session?.token===who.token){
       const duration=Math.min(220,Math.max(35,at-received));
       for(const[id,p]of Object.entries(s.players)){
-        if(id===who.token){motion.delete(id);continue;}
         const previous=snapshot.players[id];
         if(!previous)continue;
+        if(id===who.token){
+          motion.delete(id);
+          const from=displayPosition(id,previous,at),dx=from.x-p.x,dy=from.y-p.y,distance=Math.hypot(dx,dy);
+          if(distance<=.9)localCorrection={x:dx,y:dy,started:at,duration:Math.min(180,Math.max(80,duration))};
+          else localCorrection={x:0,y:0,started:at,duration:120};
+          continue;
+        }
         const from=displayPosition(id,previous,at),distance=Math.hypot(p.x-from.x,p.y-from.y);
         if(at-received>450||distance>1.4)motion.delete(id);
         else if(distance>.005)motion.set(id,{...from,toX:p.x,toY:p.y,started:at,duration});
         else motion.delete(id);
       }
       for(const id of motion.keys())if(!s.players[id])motion.delete(id);
-    }else motion.clear();
+    }else{motion.clear();localCorrection={x:0,y:0,started:at,duration:120};}
     snapshot=s;session=who;received=at;
   }
   function setMovement(dx,dy){movement={dx,dy};}
