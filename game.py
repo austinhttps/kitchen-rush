@@ -189,7 +189,8 @@ def interact(room, p):
 
 
 def action(room, token, data):
-    tick(room)
+    if data.get('action') != 'move':
+        tick(room)
     p = room['players'].get(token)
     if p is None:
         raise ValueError('Chef session not found. Rejoin the room.')

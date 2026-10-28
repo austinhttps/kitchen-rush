@@ -56,6 +56,7 @@ def state_of(session, expected=200):
 
 def run_smoke():
     server.ROOMS.clear()
+    assert server.Handler.protocol_version == 'HTTP/1.1'
     soundtrack = (ROOT / 'public/audio.js').read_bytes()
     assert b'kitchen-music' in soundtrack
     header_probe = HandlerHarness('/api/state')
@@ -67,7 +68,8 @@ def run_smoke():
     guest = post('join', {'name': 'Smoke guest', 'room': host['room'].replace('-', '').lower()})
     assert guest['room'] == host['room']
     post('action', {**host, 'action': 'start'})
-    countdown = state_of(host)
+    with patch.object(server.game, 'tick', side_effect=AssertionError('state reads must not run simulation')):
+        countdown = state_of(host)
     assert countdown['launch_at'] > countdown['wall_now']
     assert round(countdown['end'] - countdown['now']) == 150
     assert countdown['orders'][2]['guest'] == 'VIP'
@@ -75,7 +77,8 @@ def run_smoke():
     assert countdown['score_floor'] == -200 and countdown['fire_limit'] == 20
     assert 'Lemonade' in countdown['recipes'] and any(s['kind'] == 'drinks' for s in countdown['stations'])
     clock[0] = countdown['launch_at']
-    post('action', {**guest, 'action': 'move', 'dx': 1, 'dy': 0})
+    with patch.object(server.game, 'tick', side_effect=AssertionError('movement requests must not run simulation')):
+        post('action', {**guest, 'action': 'move', 'dx': 1, 'dy': 0})
     state = state_of(guest)
     assert len(state['players']) == 2 and state['players'][state['you']]['x'] > 5.5
 

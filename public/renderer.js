@@ -17,16 +17,20 @@ window.KitchenRenderer = (() => {
   }
   function displayPosition(id,p,at){
     const track=motion.get(id);
-    if(!track)return{x:p.x,y:p.y};
-    const t=Math.min(1,Math.max(0,(at-track.started)/track.duration));
-    let x=track.x+(track.toX-track.x)*t,y=track.y+(track.toY-track.y)*t;
+    let x=p.x,y=p.y;
+    if(track&&id!==session?.token){
+      const t=Math.min(1,Math.max(0,(at-track.started)/track.duration));
+      x=track.x+(track.toX-track.x)*t;
+      y=track.y+(track.toY-track.y)*t;
+    }
     if(id===session?.token&&!snapshot.paused&&!snapshot.finished&&(movement.dx||movement.dy)){
       const length=Math.max(1,Math.hypot(movement.dx,movement.dy));
-      let distance=Math.min(.12,Math.max(0,(at-received)/1000))*4;
+      let distance=Math.min(.22,Math.max(0,(at-received)/1000))*4;
       const steps=Math.max(1,Math.ceil(distance/.08));
       for(let step=0;step<steps;step++){
-        const nx=Math.max(.3,Math.min(12.7,x+movement.dx/length*distance/steps));
-        const ny=Math.max(.3,Math.min(9.4,y+movement.dy/length*distance/steps));
+        const nx=x+movement.dx/length*distance/steps;
+        const ny=y+movement.dy/length*distance/steps;
+        if(nx<.3||nx>12.7||ny<.3||ny>9.4)break;
         if(snapshot.stations.some(station=>(station.x-nx)**2+(station.y-ny)**2<=.5))break;
         x=nx;y=ny;
       }
@@ -36,12 +40,13 @@ window.KitchenRenderer = (() => {
   function update(s,who){
     const at=performance.now();
     if(snapshot&&session?.token===who.token){
-      const duration=Math.min(150,Math.max(35,at-received));
+      const duration=Math.min(220,Math.max(35,at-received));
       for(const[id,p]of Object.entries(s.players)){
+        if(id===who.token){motion.delete(id);continue;}
         const previous=snapshot.players[id];
         if(!previous)continue;
         const from=displayPosition(id,previous,at),distance=Math.hypot(p.x-from.x,p.y-from.y);
-        if(at-received>300||distance>.9)motion.delete(id);
+        if(at-received>450||distance>1.4)motion.delete(id);
         else if(distance>.005)motion.set(id,{...from,toX:p.x,toY:p.y,started:at,duration});
         else motion.delete(id);
       }

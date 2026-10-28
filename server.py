@@ -29,6 +29,8 @@ def simulate():
 
 
 class Handler(SimpleHTTPRequestHandler):
+    protocol_version = 'HTTP/1.1'
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
@@ -41,7 +43,7 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def reply(self, status, data):
-        body = json.dumps(data).encode()
+        body = json.dumps(data, separators=(',', ':')).encode()
         self.send_response(status)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Content-Length', str(len(body)))
@@ -59,14 +61,16 @@ class Handler(SimpleHTTPRequestHandler):
             room = ROOMS.get(args.get('room', [''])[0])
             token = args.get('token', [''])[0]
             if room is not None and token in room['disconnected_tokens']:
-                return self.reply(410,{'error':'Your connection was inactive for 15 seconds, so the chef slot was released. Ask the host for a new invite.'})
-            if room is not None and token in room['removed_tokens']:
-                return self.reply(410,{'error':'The host removed your chef from this kitchen. Ask for a new invite to join again.'})
-            if room is None or token not in room['players']:
-                return self.reply(404, {'error': 'Room/session not found. Create or join a kitchen.'})
-            game.tick(room)
-            room['players'][token]['last'] = time.time()
-            self.reply(200,snapshot(room,token,game.RECIPES))
+                status, result = 410, {'error':'Your connection was inactive for 15 seconds, so the chef slot was released. Ask the host for a new invite.'}
+            elif room is not None and token in room['removed_tokens']:
+                status, result = 410, {'error':'The host removed your chef from this kitchen. Ask for a new invite to join again.'}
+            elif room is None or token not in room['players']:
+                status, result = 404, {'error': 'Room/session not found. Create or join a kitchen.'}
+            else:
+                room['players'][token]['last'] = time.time()
+                result = snapshot(room,token,game.RECIPES)
+                status = 200
+        self.reply(status, result)
 
     def do_POST(self):
         try:
@@ -76,8 +80,8 @@ class Handler(SimpleHTTPRequestHandler):
             data = json.loads(self.rfile.read(size))
             with LOCK:
                 if self.path in ('/api/create','/api/join','/api/demo','/api/rejoin'):
-                    return self.reply(200,enter(ROOMS,self.path,data))
-                if self.path == '/api/leave':
+                    status, result = 200, enter(ROOMS,self.path,data)
+                elif self.path == '/api/leave':
                     code, token = data.get('room'), data.get('token')
                     room = ROOMS.get(code)
                     if room is None or token not in room['players']:
@@ -89,14 +93,16 @@ class Handler(SimpleHTTPRequestHandler):
                         room['dirty'] += 1
                     if host_token(room) is None:
                         del ROOMS[code]
-                    return self.reply(200, {'ok': True})
-                if self.path == '/api/action':
+                    status, result = 200, {'ok': True}
+                elif self.path == '/api/action':
                     room = ROOMS.get(data.get('room'))
                     if room is None:
                         raise ValueError('Room not found.')
                     game.action(room, data.get('token'), data)
-                    return self.reply(200, {'ok': True})
-                self.reply(404, {'error': 'Unknown endpoint.'})
+                    status, result = 200, {'ok': True}
+                else:
+                    status, result = 404, {'error': 'Unknown endpoint.'}
+            self.reply(status, result)
         except (ValueError, KeyError, TypeError) as exc:
             self.reply(400, {'error': str(exc)})
 
