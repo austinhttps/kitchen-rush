@@ -21,7 +21,14 @@ async function enter(mode) {
 function showGame() { $('error').textContent=''; $('lobby').hidden = true; $('game').hidden = false; $('room').textContent = session.room; window.scrollTo(0,0); $('canvas').focus({preventScroll:true}); }
 function activate(next){session={room:next.room,token:next.token};state=null;resetInput();KitchenUX.reset();GameDialogs.reset();RoundEffects.reset();LaunchCountdown.reset();RejoinFlow.remember(session);history.replaceState(null,'','/?room='+encodeURIComponent(session.room));showGame();}
 async function resume(record){KitchenAudio.unlock().catch(error);activate(await post('rejoin',{room:record.room,token:record.token}));}
-function resetInput() {keys.clear(); touch=[0,0];}
+function resetInput() {keys.clear(); touch=[0,0]; KitchenRenderer.setMovement(0,0);}
+function movementInput() {
+  return {
+    dx:touch[0]+Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft')),
+    dy:touch[1]+Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'))
+  };
+}
+function updateMovementPreview(){const {dx,dy}=movementInput();KitchenRenderer.setMovement(dx,dy);}
 function home({forget=true}={}) {const departing=session;session=null;state=null;if(forget){RejoinFlow.forget(departing);history.replaceState(null,'','/');}else RejoinFlow.idle();resetInput();KitchenRenderer.clearAim();KitchenUX.reset();GameDialogs.reset();KitchenAudio.reset();KitchenLobby.reset();RoundEffects.reset();LaunchCountdown.reset();$('lobby').hidden=false;$('game').hidden=true;window.scrollTo(0,0);}
 async function leave() {
   leaving=true;
@@ -48,8 +55,8 @@ RejoinFlow.init({resume,home,resetInput,getSession:()=>session,onError:error});
 $('invite').onclick = async () => { try { await navigator.clipboard.writeText(location.origin+'/?room='+session.room); $('invite').textContent='Copied!'; } catch(e) { error(e); } };
 document.querySelectorAll('[data-action]').forEach(b => b.onclick = () => act(b.dataset.action));
 document.querySelectorAll('[data-move]').forEach(b => {
-  b.onpointerdown = e => { e.preventDefault(); b.setPointerCapture(e.pointerId); touch=b.dataset.move.split(',').map(Number); };
-  b.onpointerup = b.onpointercancel = () => touch=[0,0];
+  b.onpointerdown = e => { e.preventDefault(); b.setPointerCapture(e.pointerId); touch=b.dataset.move.split(',').map(Number); updateMovementPreview(); };
+  b.onpointerup = b.onpointercancel = () => {touch=[0,0];updateMovementPreview();};
 });
 window.addEventListener('keydown',e => {
   if(!session || GameDialogs.blocked() || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
@@ -59,11 +66,12 @@ window.addEventListener('keydown',e => {
   if(state?.paused||RoundEffects.blocked()||LaunchCountdown.blocked()||RejoinFlow.blocked())return;
   if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(key)) e.preventDefault();
   keys.add(key);
+  updateMovementPreview();
   if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key))KitchenRenderer.clearAim();
   if(!e.repeat && {e:1,f:1,x:1}[key]) act({e:'interact',f:'throw',x:'discard'}[key]);
 });
-window.addEventListener('keyup',e => keys.delete(e.key.toLowerCase()));
-window.addEventListener('blur',() => {keys.clear();touch=[0,0];});
+window.addEventListener('keyup',e => {keys.delete(e.key.toLowerCase());updateMovementPreview();});
+window.addEventListener('blur',() => {keys.clear();touch=[0,0];updateMovementPreview();});
 async function pollState() {
   if(!session || busy || leaving || RejoinFlow.blocked()) return;
   busy=true;
@@ -84,8 +92,7 @@ document.addEventListener('visibilitychange',()=>{
 let moving=false;
 setInterval(async () => {
   if(document.visibilityState!=='visible' || moving || !session || state?.paused || GameDialogs.blocked() || RoundEffects.blocked() || LaunchCountdown.blocked() || RejoinFlow.blocked()) return;
-  const dx=touch[0]+Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft'));
-  const dy=touch[1]+Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));
+  const {dx,dy}=movementInput();
   KitchenRenderer.setMovement(dx,dy);
   if(dx||dy) {moving=true;await act('move',{dx,dy});moving=false;}
 },50);

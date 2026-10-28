@@ -1,7 +1,7 @@
 window.KitchenRenderer = (() => {
   const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d'),art=KitchenArt;
   canvas.width=1440;canvas.height=1040;
-  let snapshot=null,session=null,received=0,aim=null,movement={dx:0,dy:0},localCorrection={x:0,y:0,started:0,duration:120};
+  let snapshot=null,session=null,received=0,aim=null,movement={dx:0,dy:0},movementChangedAt=0,localCorrection={x:0,y:0,started:0,duration:120};
   const motion=new Map();
   const origin={x:42,y:176},scale=80;
   function food(item){
@@ -25,7 +25,8 @@ window.KitchenRenderer = (() => {
     }
     if(id===session?.token&&!snapshot.paused&&!snapshot.finished&&p.stunned_until<=snapshot.now&&(movement.dx||movement.dy)){
       const length=Math.max(1,Math.hypot(movement.dx,movement.dy));
-      let distance=Math.min(.22,Math.max(0,(at-received)/1000))*4;
+      const predictionStart=Math.max(received,movementChangedAt);
+      let distance=Math.min(.22,Math.max(0,(at-predictionStart)/1000))*4;
       const steps=Math.max(1,Math.ceil(distance/.08));
       for(let step=0;step<steps;step++){
         const nx=x+movement.dx/length*distance/steps;
@@ -66,7 +67,9 @@ window.KitchenRenderer = (() => {
     }else{motion.clear();localCorrection={x:0,y:0,started:at,duration:120};}
     snapshot=s;session=who;received=at;
   }
-  function setMovement(dx,dy){movement={dx,dy};}
+  function setMovement(dx,dy){
+    if(dx!==movement.dx||dy!==movement.dy){movement={dx,dy};movementChangedAt=performance.now();}
+  }
   function setAim(event){
     const r=canvas.getBoundingClientRect(),ratio=Math.min(r.width/canvas.width,r.height/canvas.height);
     const left=r.left+(r.width-canvas.width*ratio)/2,top=r.top+(r.height-canvas.height*ratio)/2;
