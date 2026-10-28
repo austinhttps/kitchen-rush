@@ -6,7 +6,7 @@ window.RejoinFlow=(()=>{
   dialog.innerHTML='<div class="modal-header"><strong id="rejoin-title">Your kitchen is waiting</strong></div><div class="modal-body"><p id="rejoin-copy"></p><p id="rejoin-error" class="dialog-error" role="alert"></p><div class="dialog-actions"><button id="rejoin-confirm" class="primary">Rejoin game</button><button id="rejoin-later">Not now</button><button id="rejoin-forget">Forget this kitchen</button></div></div>';
   document.body.append(dialog);
   const offer=document.createElement('div');offer.id='saved-kitchen';offer.hidden=true;
-  offer.innerHTML='<span id="saved-kitchen-copy"></span><button id="saved-kitchen-open">Rejoin</button>';
+  offer.innerHTML='<span id="saved-kitchen-copy"></span><p id="saved-kitchen-error" class="dialog-error" role="alert"></p><button id="saved-kitchen-open">Rejoin game</button>';
   el('lobby-feedback').append(offer);
   function load(){
     const raw=sessionStorage.getItem('kitchen')||localStorage.getItem(KEY);
@@ -42,7 +42,18 @@ window.RejoinFlow=(()=>{
   function expired(message){unavailable=true;ask();el('rejoin-error').textContent=message;}
   function init(options){
     callbacks=options;saved=load();refreshOffer();
-    el('saved-kitchen-open').onclick=()=>ask();
+    el('saved-kitchen-open').onclick=async()=>{
+      if(!saved||unavailable)return;
+      const button=el('saved-kitchen-open');
+      button.disabled=true;button.textContent='Rejoining…';
+      el('saved-kitchen-error').textContent='';
+      try{await callbacks.resume(saved);unavailable=false;idle();}
+      catch(error){
+        if(error.status===400||error.status===404)unavailable=true;
+        el('saved-kitchen-error').textContent=error.message;
+      }
+      finally{button.disabled=unavailable;button.textContent=unavailable?'Unavailable':'Rejoin game';}
+    };
     el('rejoin-later').onclick=decline;
     el('rejoin-forget').onclick=()=>{forget(callbacks.getSession());callbacks.home();};
     dialog.addEventListener('cancel',event=>{event.preventDefault();decline();});
@@ -53,8 +64,7 @@ window.RejoinFlow=(()=>{
       finally{el('rejoin-confirm').disabled=unavailable;}
     };
     window.addEventListener('offline',()=>{if(callbacks.getSession())ask(true);});
-    const invite=new URLSearchParams(location.search).get('room');
-    if(saved&&(!invite||invite.toUpperCase().replace('-','')===saved.room.replace('-','')))ask();
+    // Saved sessions are offered on the homepage without interrupting page load.
   }
   function failed(error){failures++;if(failures>=2){ask(true);el('rejoin-error').textContent='Could not reach the kitchen. Check your connection, then choose Rejoin game.';}}
   return {init,remember,metadata,forget,idle,expired,failed,good:()=>{failures=0;},blocked:()=>interrupted};

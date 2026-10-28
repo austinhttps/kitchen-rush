@@ -86,6 +86,7 @@ setInterval(async () => {
   if(document.visibilityState!=='visible' || moving || !session || state?.paused || GameDialogs.blocked() || RoundEffects.blocked() || LaunchCountdown.blocked() || RejoinFlow.blocked()) return;
   const dx=touch[0]+Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft'));
   const dy=touch[1]+Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));
+  KitchenRenderer.setMovement(dx,dy);
   if(dx||dy) {moving=true;await act('move',{dx,dy});moving=false;}
 },50);
 function render() {

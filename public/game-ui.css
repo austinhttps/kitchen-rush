@@ -19,6 +19,8 @@
 #launch-overlay.launch-go{pointer-events:none;background:#264e3770;backdrop-filter:none}.launch-go #launch-number{color:#dfefa4}
 #saved-kitchen{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#e8eddf;border:1px solid #d5deca;border-radius:8px;padding:12px 16px;font-size:13px;max-width:650px}
 #saved-kitchen button{padding:7px 12px;margin-left:auto;font-size:12px}
+#saved-kitchen #saved-kitchen-error{flex-basis:100%;margin:0;color:#a23b29;font-size:12px}
+.backend-note{display:inline-block;margin:8px 0 0;padding:9px 13px;border-left:3px solid #d9a64d;border-radius:0 7px 7px 0;background:#eee9d8;color:#58644f;font-size:13px}
 @keyframes pan-wiggle{from{transform:rotate(-9deg)}to{transform:rotate(9deg)}}
 @media(prefers-reduced-motion:reduce){.launch-pan{animation:none}}
 @media(max-width:800px){#arena .arena-hud,#arena:fullscreen .arena-hud{gap:7px;flex-wrap:wrap;top:5px;left:5px;right:5px;padding:7px;font-size:10px}#arena-score{gap:7px}#arena-score b{font-size:15px}#timer{font-size:15px}#arena #supply{font-size:10px}#arena-menu{padding:6px 8px;font-size:10px}.pause-card{padding:18px}#pause-overlay{padding:12px}.key-guide dl{font-size:11px}#arena #announcement,#arena:fullscreen #announcement{bottom:8px;left:8px;max-width:230px;font-size:10px}#arena #game-alerts{top:105px}#arena:fullscreen #arena-orders{top:105px}.launch-card h2{font-size:22px}#launch-number{font-size:80px}.launch-pan{font-size:38px}}

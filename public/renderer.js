@@ -1,7 +1,8 @@
 window.KitchenRenderer = (() => {
   const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d'),art=KitchenArt;
   canvas.width=1440;canvas.height=1040;
-  let snapshot=null,session=null,received=0,aim=null;
+  let snapshot=null,session=null,received=0,aim=null,movement={dx:0,dy:0};
+  const motion=new Map();
   const origin={x:42,y:176},scale=80;
   function food(item){
     if(Array.isArray(item))return '🍽️'+item.map(food).join('');
@@ -14,7 +15,41 @@ window.KitchenRenderer = (() => {
     art.box(ctx,left,top,width,28,'#173c31ed',7);art.text(ctx,label+' '+remaining.toFixed(1)+'s',x,top+10,11,'#fff4d3');
     ctx.fillStyle='#f0c568';ctx.fillRect(left+7,top+21,(width-14)*ratio,3);
   }
-  function update(s,who){snapshot=s;session=who;received=performance.now();}
+  function displayPosition(id,p,at){
+    const track=motion.get(id);
+    if(!track)return{x:p.x,y:p.y};
+    const t=Math.min(1,Math.max(0,(at-track.started)/track.duration));
+    let x=track.x+(track.toX-track.x)*t,y=track.y+(track.toY-track.y)*t;
+    if(id===session?.token&&!snapshot.paused&&!snapshot.finished&&(movement.dx||movement.dy)){
+      const length=Math.max(1,Math.hypot(movement.dx,movement.dy));
+      let distance=Math.min(.12,Math.max(0,(at-received)/1000))*4;
+      const steps=Math.max(1,Math.ceil(distance/.08));
+      for(let step=0;step<steps;step++){
+        const nx=Math.max(.3,Math.min(12.7,x+movement.dx/length*distance/steps));
+        const ny=Math.max(.3,Math.min(9.4,y+movement.dy/length*distance/steps));
+        if(snapshot.stations.some(station=>(station.x-nx)**2+(station.y-ny)**2<=.5))break;
+        x=nx;y=ny;
+      }
+    }
+    return{x,y};
+  }
+  function update(s,who){
+    const at=performance.now();
+    if(snapshot&&session?.token===who.token){
+      const duration=Math.min(150,Math.max(35,at-received));
+      for(const[id,p]of Object.entries(s.players)){
+        const previous=snapshot.players[id];
+        if(!previous)continue;
+        const from=displayPosition(id,previous,at),distance=Math.hypot(p.x-from.x,p.y-from.y);
+        if(at-received>300||distance>.9)motion.delete(id);
+        else if(distance>.005)motion.set(id,{...from,toX:p.x,toY:p.y,started:at,duration});
+        else motion.delete(id);
+      }
+      for(const id of motion.keys())if(!s.players[id])motion.delete(id);
+    }else motion.clear();
+    snapshot=s;session=who;received=at;
+  }
+  function setMovement(dx,dy){movement={dx,dy};}
   function setAim(event){
     const r=canvas.getBoundingClientRect(),ratio=Math.min(r.width/canvas.width,r.height/canvas.height);
     const left=r.left+(r.width-canvas.width*ratio)/2,top=r.top+(r.height-canvas.height*ratio)/2;
@@ -49,7 +84,7 @@ window.KitchenRenderer = (() => {
       ctx.strokeStyle='#e6a85a';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(x-shot.dx*28,y-shot.dy*28);ctx.lineTo(x,y);ctx.stroke();art.text(ctx,food(shot.item),x,y-12,30);
     }
     Object.entries(s.players).forEach(([id,p],index)=>{
-      const x=origin.x+p.x*scale,y=origin.y+p.y*scale;
+      const position=displayPosition(id,p,performance.now()),x=origin.x+position.x*scale,y=origin.y+position.y*scale;
       if(id===session.token){ctx.strokeStyle='#f9e9a9';ctx.lineWidth=5;ctx.beginPath();ctx.ellipse(x,y+15,29,17,0,0,7);ctx.stroke();}
       art.person(ctx,x,y,art.colors[index%8],true);
       if(p.task&&p.task.end>now)timerTag(x,y-40,p.task.kind==='chop'?'CHOP':p.task.kind==='wash'?'CLEAN':'MIX',p.task.end-now,3);
@@ -65,5 +100,5 @@ window.KitchenRenderer = (() => {
     }
   }
   requestAnimationFrame(draw);
-  return {update,aimVector,clearAim};
+  return {update,setMovement,aimVector,clearAim};
 })();
