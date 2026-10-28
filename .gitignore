@@ -1,0 +1,6 @@
+.agent/
+CONTINUITY.md
+__pycache__/
+*.py[cod]
+.vercel/
+artifacts/
