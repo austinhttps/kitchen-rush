@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: kitchen-rush-backend-austinhttps
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health

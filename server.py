@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 import time
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -49,6 +50,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         url = urlparse(self.path)
+        if url.path == '/health':
+            return self.reply(200, {'ok': True})
         if url.path != '/api/state':
             return super().do_GET()
         args = parse_qs(url.query)
@@ -100,5 +103,6 @@ class Handler(SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     threading.Thread(target=simulate,daemon=True,name='kitchen-simulation').start()
-    print('Kitchen Rush running at http://localhost:8000', flush=True)
-    ThreadingHTTPServer(('0.0.0.0', 8000), Handler).serve_forever()
+    port = int(os.environ.get('PORT', '8000'))
+    print(f'Kitchen Rush running on port {port}', flush=True)
+    ThreadingHTTPServer(('0.0.0.0', port), Handler).serve_forever()

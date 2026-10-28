@@ -4,9 +4,15 @@ A dependency-free, real-time kitchen co-op prototype for up to four chefs, with 
 
 Run `python server.py`, then open http://localhost:8000. With Docker, build using `docker build -t kitchen-rush .` and run `docker run --rm -p 8000:8000 kitchen-rush`.
 
+## Deploy online
+
+The frontend can run as a Vercel static site while the authoritative multiplayer server runs as a Render Docker web service. The included `render.yaml` defines the backend and health check. Create the Render Blueprint from the repository, then create a Vercel project from the same repository with its root directory set to `public`. Set the Vercel project environment variable `BACKEND_URL` to the backend's HTTPS origin (for example, `https://your-service.onrender.com`, without a trailing slash); `public/vercel.json` routes `/api/*` through Vercel to that origin.
+
+The included Render Blueprint uses the free plan. Free web services spin down after 15 minutes without inbound traffic and take about a minute to start again. A restart clears active rooms because room state is held in server memory. Choose a paid Render plan to avoid idle spin-down for an always-available game server. Keep the backend at one instance: rooms are not shared across processes.
+
 The footer includes the Kitchen Rush copyright notice and notes that source code is maintained in this local workspace, with no public repository. The homepage has three entry flows: **Play demo** needs no name and enters as Chef Trainee; **Join a room** needs only a nickname and room code; **Create a room** asks for a nickname, difficulty, and bot count. The server exposes separate `/api/demo`, `/api/join`, and `/api/create` endpoints; an empty join code cannot accidentally create a room. Setups validate before room state is stored.
 
-Room codes are generated automatically with six mixed uppercase letters/numbers, displayed as `XXX-XXX`, for example `A7K-2QM`. The separator is additional to the six code characters. Codes always contain both a letter and a digit, avoid ambiguous generated characters, and are checked against existing rooms. Joining accepts raw/formatted and lowercase/uppercase codes. Share the invite or code, then join from another browser/device. On your local network, devices must use your computer's LAN IP with port 8000, not localhost. Internet hosting is not included in this local milestone.
+Room codes are generated automatically with six mixed uppercase letters/numbers, displayed as `XXX-XXX`, for example `A7K-2QM`. The separator is additional to the six code characters. Codes always contain both a letter and a digit, avoid ambiguous generated characters, and are checked against existing rooms. Joining accepts raw/formatted and lowercase/uppercase codes. Share the invite or code, then join from another browser/device. On your local network, devices must use your computer's LAN IP with port 8000, not localhost.
 
 Real players enter a nickname; `Chef` is added automatically without duplicating an existing prefix. Use WASD/arrows to move, E to interact/pick up, F to throw, X to discard, and P/Escape to open the menu. A detailed eighteen-section handbook sits below the homepage entry buttons and is also available through Help. The in-window game frame contains the crew, recipes, ticket strip, toolbar, actions, and touch controls in windowed and fullscreen play.
 
